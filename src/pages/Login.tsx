@@ -1,35 +1,92 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
+  const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [registerData, setRegisterData] = useState({ 
+    name: '', 
+    email: '', 
+    phone: '', 
+    password: '', 
+    confirmPassword: '' 
+  });
+  
   const navigate = useNavigate();
+  const { signIn, signUp, user } = useAuth();
+  const { toast } = useToast();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate login
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate("/");
-    }, 1000);
+    const { error } = await signIn(loginData.email, loginData.password);
+    
+    if (error) {
+      toast({
+        title: "Erro no login",
+        description: error.message === "Invalid login credentials" 
+          ? "Email ou senha incorretos" 
+          : error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Login realizado com sucesso!",
+        description: "Bem-vindo ao Hair Salon ERP",
+      });
+      navigate('/', { replace: true });
+    }
+    
+    setIsLoading(false);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate registration
-    setTimeout(() => {
+    if (registerData.password !== registerData.confirmPassword) {
+      toast({
+        title: "Erro no cadastro",
+        description: "As senhas não coincidem",
+        variant: "destructive",
+      });
       setIsLoading(false);
-      navigate("/");
-    }, 1000);
+      return;
+    }
+    
+    const { error } = await signUp(registerData.email, registerData.password, registerData.name);
+    
+    if (error) {
+      toast({
+        title: "Erro no cadastro",
+        description: error.message === "User already registered" 
+          ? "Este email já está cadastrado" 
+          : error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Cadastro realizado com sucesso!",
+        description: "Verifique seu email para confirmar a conta",
+      });
+    }
+    
+    setIsLoading(false);
   };
 
   return (
@@ -67,6 +124,8 @@ export default function Login() {
                       id="email"
                       type="email"
                       placeholder="seu@email.com"
+                      value={loginData.email}
+                      onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
                       required
                     />
                   </div>
@@ -77,6 +136,8 @@ export default function Login() {
                       id="password"
                       type="password"
                       placeholder="••••••••"
+                      value={loginData.password}
+                      onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
                       required
                     />
                   </div>
@@ -99,6 +160,8 @@ export default function Login() {
                       id="name"
                       type="text"
                       placeholder="Seu nome completo"
+                      value={registerData.name}
+                      onChange={(e) => setRegisterData(prev => ({ ...prev, name: e.target.value }))}
                       required
                     />
                   </div>
@@ -109,6 +172,8 @@ export default function Login() {
                       id="register-email"
                       type="email"
                       placeholder="seu@email.com"
+                      value={registerData.email}
+                      onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
                       required
                     />
                   </div>
@@ -119,6 +184,8 @@ export default function Login() {
                       id="phone"
                       type="tel"
                       placeholder="(11) 99999-9999"
+                      value={registerData.phone}
+                      onChange={(e) => setRegisterData(prev => ({ ...prev, phone: e.target.value }))}
                       required
                     />
                   </div>
@@ -129,6 +196,8 @@ export default function Login() {
                       id="register-password"
                       type="password"
                       placeholder="••••••••"
+                      value={registerData.password}
+                      onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
                       required
                     />
                   </div>
@@ -139,6 +208,8 @@ export default function Login() {
                       id="confirm-password"
                       type="password"
                       placeholder="••••••••"
+                      value={registerData.confirmPassword}
+                      onChange={(e) => setRegisterData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                       required
                     />
                   </div>
