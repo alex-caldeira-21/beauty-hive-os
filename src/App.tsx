@@ -14,6 +14,7 @@ import Employees from "./pages/Employees";
 import Inventory from "./pages/Inventory";
 import Sales from "./pages/Sales";
 import Reports from "./pages/Reports";
+import WhatsAppIntegration from "./pages/WhatsAppIntegration";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -75,6 +76,13 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<Reports />} />
+            </Route>
+            <Route path="/whatsapp" element={
+              <ProtectedRoute>
+                <MainLayout title="Integração WhatsApp" />
+              </ProtectedRoute>
+            }>
+              <Route index element={<WhatsAppIntegration />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

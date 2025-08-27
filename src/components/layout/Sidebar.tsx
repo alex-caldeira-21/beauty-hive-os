@@ -7,7 +7,8 @@ import {
   ShoppingCart, 
   BarChart3,
   Settings,
-  LogOut
+  LogOut,
+  MessageCircle
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ const menuItems = [
   { icon: Package, label: "Estoque", href: "/inventory" },
   { icon: ShoppingCart, label: "Vendas", href: "/sales" },
   { icon: BarChart3, label: "Relatórios", href: "/reports" },
+  { icon: MessageCircle, label: "WhatsApp", href: "/whatsapp" },
 ];
 
 export function Sidebar() {
