@@ -1,28 +1,43 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Calendar, Clock, User, Filter, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { FormModal } from "@/components/modals/FormModal";
+import { AppointmentForm } from "@/components/forms/AppointmentForm";
+import { useSearchParams } from "react-router-dom";
 
 export default function Appointments() {
   const [selectedDate, setSelectedDate] = useState("2025-08-26");
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("action") === "new") {
+      setIsModalOpen(true);
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   // Handler para novo agendamento
   const handleNovoAgendamento = useCallback(() => {
-    setIsLoading(true);
-    
-    // Simula abertura de modal/página de novo agendamento
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: "Novo Agendamento",
-        description: "Modal de novo agendamento será implementado",
-      });
-    }, 500);
+    setIsModalOpen(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
+
+  const handleAppointmentSuccess = useCallback(() => {
+    setIsModalOpen(false);
+    toast({
+      title: "Sucesso",
+      description: "Agendamento criado com sucesso!",
+    });
   }, []);
 
   // Handler para filtros
@@ -148,6 +163,14 @@ export default function Appointments() {
           </div>
         </CardContent>
       </Card>
+
+      <FormModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        title="Novo Agendamento"
+      >
+        <AppointmentForm onSuccess={handleAppointmentSuccess} />
+      </FormModal>
     </div>
   );
 }
