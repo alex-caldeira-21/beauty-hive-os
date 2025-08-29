@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Appointments from "./pages/Appointments";
 import Clients from "./pages/Clients";
 import Employees from "./pages/Employees";
+import Services from "./pages/Services";
 import Inventory from "./pages/Inventory";
 import Sales from "./pages/Sales";
 import Reports from "./pages/Reports";
@@ -55,6 +56,13 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<Employees />} />
+            </Route>
+            <Route path="/services" element={
+              <ProtectedRoute>
+                <MainLayout title="Serviços" />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Services />} />
             </Route>
             <Route path="/inventory" element={
               <ProtectedRoute>

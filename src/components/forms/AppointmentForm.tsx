@@ -180,7 +180,14 @@ export function AppointmentForm({ onSuccess, initialData }: AppointmentFormProps
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Serviço</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={(value) => {
+                  field.onChange(value);
+                  // Preenche automaticamente o preço quando um serviço é selecionado
+                  const selectedService = services.find(s => s.id === value);
+                  if (selectedService) {
+                    form.setValue("price", selectedService.price.toString());
+                  }
+                }} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um serviço" />
@@ -189,7 +196,7 @@ export function AppointmentForm({ onSuccess, initialData }: AppointmentFormProps
                   <SelectContent>
                     {services.map((service) => (
                       <SelectItem key={service.id} value={service.id}>
-                        {service.name} - R$ {service.price}
+                        {service.name} - R$ {service.price?.toFixed(2) || "0,00"}
                       </SelectItem>
                     ))}
                   </SelectContent>

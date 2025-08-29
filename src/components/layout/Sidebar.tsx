@@ -8,7 +8,8 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  MessageCircle
+  MessageCircle,
+  Scissors
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ const menuItems = [
   { icon: Calendar, label: "Agendamentos", href: "/appointments" },
   { icon: Users, label: "Clientes", href: "/clients" },
   { icon: UserCheck, label: "Funcionários", href: "/employees" },
+  { icon: Scissors, label: "Serviços", href: "/services" },
   { icon: Package, label: "Estoque", href: "/inventory" },
   { icon: ShoppingCart, label: "Vendas", href: "/sales" },
   { icon: BarChart3, label: "Relatórios", href: "/reports" },
