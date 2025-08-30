@@ -27,10 +27,20 @@ type AppointmentFormData = z.infer<typeof appointmentSchema>;
 
 interface AppointmentFormProps {
   onSuccess?: () => void;
-  initialData?: Partial<AppointmentFormData>;
+  appointment?: {
+    id: string;
+    client_id: string;
+    employee_id: string;
+    service_id: string;
+    appointment_date: string;
+    start_time: string;
+    end_time: string;
+    notes?: string;
+    price?: number;
+  };
 }
 
-export function AppointmentForm({ onSuccess, initialData }: AppointmentFormProps) {
+export function AppointmentForm({ onSuccess, appointment }: AppointmentFormProps) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
@@ -39,15 +49,15 @@ export function AppointmentForm({ onSuccess, initialData }: AppointmentFormProps
 
   const form = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentSchema),
-    defaultValues: initialData || {
-      client_id: "",
-      employee_id: "",
-      service_id: "",
-      appointment_date: "",
-      start_time: "",
-      end_time: "",
-      notes: "",
-      price: "",
+    defaultValues: {
+      client_id: appointment?.client_id || "",
+      employee_id: appointment?.employee_id || "",
+      service_id: appointment?.service_id || "",
+      appointment_date: appointment?.appointment_date || "",
+      start_time: appointment?.start_time || "",
+      end_time: appointment?.end_time || "",
+      notes: appointment?.notes || "",
+      price: appointment?.price?.toString() || "",
     },
   });
 
@@ -95,18 +105,31 @@ export function AppointmentForm({ onSuccess, initialData }: AppointmentFormProps
         price: data.price ? parseFloat(data.price) : null,
       };
 
-      const { error } = await supabase
-        .from("appointments")
-        .insert(appointmentData);
+      if (appointment) {
+        // Update existing appointment
+        const { error } = await supabase
+          .from("appointments")
+          .update(appointmentData)
+          .eq("id", appointment.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        // Create new appointment
+        const { error } = await supabase
+          .from("appointments")
+          .insert(appointmentData);
+
+        if (error) throw error;
+      }
 
       toast({
         title: "Sucesso",
-        description: "Agendamento criado com sucesso!",
+        description: appointment ? "Agendamento atualizado com sucesso!" : "Agendamento criado com sucesso!",
       });
 
-      form.reset();
+      if (!appointment) {
+        form.reset();
+      }
       onSuccess?.();
     } catch (error) {
       console.error("Erro ao salvar agendamento:", error);
@@ -287,7 +310,7 @@ export function AppointmentForm({ onSuccess, initialData }: AppointmentFormProps
 
         <div className="flex gap-3">
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Salvando..." : "Salvar Agendamento"}
+            {isLoading ? "Salvando..." : appointment ? "Atualizar Agendamento" : "Salvar Agendamento"}
           </Button>
         </div>
       </form>
