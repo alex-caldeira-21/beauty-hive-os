@@ -1,11 +1,16 @@
+import { useState, useEffect } from "react";
 import { 
   Calendar, 
   DollarSign, 
   Users, 
   AlertTriangle,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Clock,
+  User
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +47,43 @@ const appointmentData = [
 ];
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUpcomingAppointments = async () => {
+      if (!user) return;
+      
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const { data, error } = await supabase
+          .from('appointments')
+          .select(`
+            *,
+            clients(name),
+            employees(name),
+            services(name)
+          `)
+          .eq('user_id', user.id)
+          .gte('appointment_date', today)
+          .eq('status', 'scheduled')
+          .order('appointment_date')
+          .order('start_time')
+          .limit(5);
+
+        if (error) throw error;
+        setUpcomingAppointments(data || []);
+      } catch (error) {
+        console.error('Erro ao carregar agendamentos:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUpcomingAppointments();
+  }, [user]);
+
   return (
     <div className="space-y-6">
       {/* Metrics Cards */}
@@ -164,10 +206,46 @@ export default function Dashboard() {
             <CardTitle>Próximos Agendamentos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhum agendamento encontrado para esta data</p>
-            </div>
+            {isLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p>Carregando agendamentos...</p>
+              </div>
+            ) : upcomingAppointments.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum agendamento encontrado</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {upcomingAppointments.map((appointment) => (
+                  <div 
+                    key={appointment.id} 
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="w-4 h-4" />
+                        {new Date(appointment.appointment_date).toLocaleDateString('pt-BR')}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4" />
+                        {appointment.start_time}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center gap-2 font-medium">
+                        <User className="w-4 h-4" />
+                        {appointment.clients?.name}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {appointment.services?.name}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

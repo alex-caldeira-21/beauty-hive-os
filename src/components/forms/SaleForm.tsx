@@ -171,6 +171,21 @@ export function SaleForm({ onSuccess, onCancel }: SaleFormProps) {
 
       if (itemsError) throw itemsError;
 
+      // Atualizar estoque dos produtos vendidos
+      for (const item of data.items) {
+        if (item.product_id) {
+          const { error: stockError } = await supabase.rpc('update_product_stock', {
+            p_product_id: item.product_id,
+            p_quantity_sold: item.quantity
+          });
+          
+          if (stockError) {
+            console.error('Erro ao atualizar estoque:', stockError);
+            // Continua mesmo com erro no estoque para não falhar a venda
+          }
+        }
+      }
+
       toast({
         title: "Sucesso!",
         description: "Venda registrada com sucesso",

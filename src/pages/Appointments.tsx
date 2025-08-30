@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
-import { Calendar, Clock, User, Filter, Plus, Edit, Trash2 } from "lucide-react";
+import { Calendar, Clock, User, Filter, Plus, Edit, Trash2, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { FormModal } from "@/components/modals/FormModal";
@@ -35,6 +36,11 @@ export default function Appointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [clients, setClients] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [employeeFilter, setEmployeeFilter] = useState("");
+  const [clientFilter, setClientFilter] = useState("");
+  const [timeFilter, setTimeFilter] = useState("");
 
   useEffect(() => {
     if (searchParams.get("action") === "new") {
@@ -45,7 +51,22 @@ export default function Appointments() {
 
   useEffect(() => {
     fetchAppointments();
+    loadFilterData();
   }, [selectedDate]);
+
+  const loadFilterData = async () => {
+    try {
+      const [clientsRes, employeesRes] = await Promise.all([
+        supabase.from("clients").select("id, name").order("name"),
+        supabase.from("employees").select("id, name").eq("status", "active").order("name")
+      ]);
+
+      if (clientsRes.data) setClients(clientsRes.data);
+      if (employeesRes.data) setEmployees(employeesRes.data);
+    } catch (error) {
+      console.error('Erro ao carregar dados dos filtros:', error);
+    }
+  };
 
   const fetchAppointments = async () => {
     setIsLoading(true);
@@ -125,6 +146,30 @@ export default function Appointments() {
     });
   }, [editingAppointment]);
 
+  const handleCompleteAppointment = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: 'completed' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Agendamento marcado como concluído!",
+      });
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error completing appointment:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao concluir agendamento",
+        variant: "destructive",
+      });
+    }
+  }, []);
+
   // Handler para filtros
   const handleFiltros = useCallback(() => {
     toast({
@@ -143,12 +188,18 @@ export default function Appointments() {
     setSearchTerm(term);
   }, []);
 
-  // Filter appointments based on search term
-  const filteredAppointments = appointments.filter(appointment =>
-    appointment.clients?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appointment.employees?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    appointment.services?.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter appointments based on search term and filters
+  const filteredAppointments = appointments.filter(appointment => {
+    const matchesSearch = appointment.clients?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appointment.employees?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      appointment.services?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesEmployee = !employeeFilter || appointment.employee_id === employeeFilter;
+    const matchesClient = !clientFilter || appointment.client_id === clientFilter;
+    const matchesTime = !timeFilter || appointment.start_time.startsWith(timeFilter);
+    
+    return matchesSearch && matchesEmployee && matchesClient && matchesTime;
+  });
 
   // Calculate daily summary
   const totalAppointments = filteredAppointments.length;
@@ -215,15 +266,41 @@ export default function Appointments() {
           aria-label="Buscar agendamentos"
         />
         
-        <Button 
-          variant="outline" 
-          className="gap-2"
-          onClick={handleFiltros}
-          aria-label="Abrir filtros avançados"
-        >
-          <Filter className="w-4 h-4" />
-          Filtros
-        </Button>
+        <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filtrar por funcionário" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos funcionários</SelectItem>
+            {employees.map((employee) => (
+              <SelectItem key={employee.id} value={employee.id}>
+                {employee.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={clientFilter} onValueChange={setClientFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filtrar por cliente" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos clientes</SelectItem>
+            {clients.map((client) => (
+              <SelectItem key={client.id} value={client.id}>
+                {client.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Input
+          type="time"
+          value={timeFilter}
+          onChange={(e) => setTimeFilter(e.target.value)}
+          className="w-40"
+          placeholder="Filtrar por horário"
+        />
       </div>
 
       {/* Daily Summary */}
@@ -315,6 +392,16 @@ export default function Appointments() {
                     <TableCell>{getStatusBadge(appointment.status)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
+                        {appointment.status === 'scheduled' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCompleteAppointment(appointment.id)}
+                            className="text-green-600 hover:text-green-700"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
