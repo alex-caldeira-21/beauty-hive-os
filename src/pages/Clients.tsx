@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, Edit, MoreHorizontal, Phone, Mail, MapPin, Calendar as CalendarIcon, Trash2 } from "lucide-react";
+import { Search, Plus, Edit, MoreHorizontal, Phone, Mail, MapPin, Calendar as CalendarIcon, Trash2, History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { FormModal } from "@/components/modals/FormModal";
 import { ClientForm } from "@/components/forms/ClientForm";
+import { ClientHistoryModal } from "@/components/modals/ClientHistoryModal";
 
 export default function Clients() {
   const { user } = useAuth();
@@ -25,6 +26,8 @@ export default function Clients() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<any>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
 
   const loadClients = useCallback(async () => {
     if (!user) return;
@@ -105,6 +108,11 @@ export default function Clients() {
     setIsModalOpen(false);
     setEditingClient(null);
     loadClients();
+  };
+
+  const handleViewHistory = (client: any) => {
+    setSelectedClient(client);
+    setIsHistoryModalOpen(true);
   };
 
   const getInitials = (name: string) => {
@@ -239,12 +247,13 @@ export default function Clients() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleViewHistory(client)}>
+                          <History className="w-4 h-4 mr-2" />
+                          Histórico
+                        </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClient(client.id)}>
                           <Trash2 className="w-4 h-4 mr-2" />
                           Deletar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          Histórico
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -291,6 +300,13 @@ export default function Clients() {
           onCancel={() => setIsModalOpen(false)}
         />
       </FormModal>
+
+      {/* History Modal */}
+      <ClientHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        client={selectedClient}
+      />
     </div>
   );
 }
