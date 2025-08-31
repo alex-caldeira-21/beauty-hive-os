@@ -38,8 +38,8 @@ export default function Appointments() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [clients, setClients] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
-  const [employeeFilter, setEmployeeFilter] = useState("");
-  const [clientFilter, setClientFilter] = useState("");
+  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+  const [clientFilter, setClientFilter] = useState<string>("all");
   const [timeFilter, setTimeFilter] = useState("");
 
   useEffect(() => {
@@ -194,8 +194,8 @@ export default function Appointments() {
       appointment.employees?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       appointment.services?.name.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesEmployee = !employeeFilter || appointment.employee_id === employeeFilter;
-    const matchesClient = !clientFilter || appointment.client_id === clientFilter;
+    const matchesEmployee = employeeFilter === "all" || appointment.employee_id === employeeFilter;
+    const matchesClient = clientFilter === "all" || appointment.client_id === clientFilter;
     const matchesTime = !timeFilter || appointment.start_time.startsWith(timeFilter);
     
     return matchesSearch && matchesEmployee && matchesClient && matchesTime;
@@ -271,7 +271,7 @@ export default function Appointments() {
             <SelectValue placeholder="Filtrar por funcionário" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos funcionários</SelectItem>
+            <SelectItem value="all">Todos funcionários</SelectItem>
             {employees.map((employee) => (
               <SelectItem key={employee.id} value={employee.id}>
                 {employee.name}
@@ -285,7 +285,7 @@ export default function Appointments() {
             <SelectValue placeholder="Filtrar por cliente" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos clientes</SelectItem>
+            <SelectItem value="all">Todos clientes</SelectItem>
             {clients.map((client) => (
               <SelectItem key={client.id} value={client.id}>
                 {client.name}
