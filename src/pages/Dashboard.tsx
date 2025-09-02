@@ -26,38 +26,72 @@ import {
   Bar
 } from "recharts";
 
-const revenueData = [
-  { date: "19/08", value: 0 },
-  { date: "20/08", value: 0 },
-  { date: "21/08", value: 0 },
-  { date: "22/08", value: 0 },
-  { date: "23/08", value: 0 },
-  { date: "24/08", value: 0 },
-  { date: "25/08", value: 0 },
-];
-
-const appointmentData = [
-  { date: "19/08", value: 0 },
-  { date: "20/08", value: 0 },
-  { date: "21/08", value: 0 },
-  { date: "22/08", value: 0 },
-  { date: "23/08", value: 0 },
-  { date: "24/08", value: 0 },
-  { date: "25/08", value: 0 },
-];
-
 export default function Dashboard() {
   const { user } = useAuth();
   const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [metrics, setMetrics] = useState({
+    todayAppointments: 0,
+    todayRevenue: 0,
+    totalClients: 0,
+    lowStock: 0,
+  });
+  const [revenueData, setRevenueData] = useState<{ date: string; value: number }[]>([]);
+  const [appointmentData, setAppointmentData] = useState<{ date: string; value: number }[]>([]);
 
   useEffect(() => {
-    const loadUpcomingAppointments = async () => {
+    const loadDashboardData = async () => {
       if (!user) return;
       
       try {
         const today = new Date().toISOString().split('T')[0];
-        const { data, error } = await supabase
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        
+        // Today's appointments
+        const { data: todayAppts } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('appointment_date', today);
+
+        // Today's revenue from sales
+        const { data: todaySales } = await supabase
+          .from('sales')
+          .select('total')
+          .eq('user_id', user.id)
+          .eq('sale_date', today);
+
+        // Total clients count
+        const { data: clientsData } = await supabase
+          .from('clients')
+          .select('id', { count: 'exact' })
+          .eq('user_id', user.id);
+
+        // Low stock products (quantity < 10)
+        const { data: lowStockData } = await supabase
+          .from('products')
+          .select('id', { count: 'exact' })
+          .eq('user_id', user.id)
+          .lt('stock_quantity', 10);
+
+        // Last 7 days revenue data
+        const { data: last7DaysRevenue } = await supabase
+          .from('sales')
+          .select('sale_date, total')
+          .eq('user_id', user.id)
+          .gte('sale_date', sevenDaysAgo)
+          .order('sale_date');
+
+        // Last 7 days appointments data
+        const { data: last7DaysAppts } = await supabase
+          .from('appointments')
+          .select('appointment_date')
+          .eq('user_id', user.id)
+          .gte('appointment_date', sevenDaysAgo)
+          .order('appointment_date');
+
+        // Upcoming appointments
+        const { data: upcomingData } = await supabase
           .from('appointments')
           .select(`
             *,
@@ -72,16 +106,50 @@ export default function Dashboard() {
           .order('start_time')
           .limit(5);
 
-        if (error) throw error;
-        setUpcomingAppointments(data || []);
+        // Process metrics
+        setMetrics({
+          todayAppointments: todayAppts?.length || 0,
+          todayRevenue: todaySales?.reduce((sum, sale) => sum + (sale.total || 0), 0) || 0,
+          totalClients: clientsData?.length || 0,
+          lowStock: lowStockData?.length || 0,
+        });
+
+        // Process revenue chart data
+        const revenueByDate: { [key: string]: number } = {};
+        last7DaysRevenue?.forEach(sale => {
+          const date = new Date(sale.sale_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          revenueByDate[date] = (revenueByDate[date] || 0) + (sale.total || 0);
+        });
+
+        // Process appointments chart data
+        const appointmentsByDate: { [key: string]: number } = {};
+        last7DaysAppts?.forEach(appt => {
+          const date = new Date(appt.appointment_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          appointmentsByDate[date] = (appointmentsByDate[date] || 0) + 1;
+        });
+
+        // Generate last 7 days array
+        const chartData = Array.from({ length: 7 }, (_, i) => {
+          const date = new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000);
+          const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          return {
+            date: dateStr,
+            revenue: revenueByDate[dateStr] || 0,
+            appointments: appointmentsByDate[dateStr] || 0,
+          };
+        });
+
+        setRevenueData(chartData.map(d => ({ date: d.date, value: d.revenue })));
+        setAppointmentData(chartData.map(d => ({ date: d.date, value: d.appointments })));
+        setUpcomingAppointments(upcomingData || []);
       } catch (error) {
-        console.error('Erro ao carregar agendamentos:', error);
+        console.error('Erro ao carregar dados do dashboard:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadUpcomingAppointments();
+    loadDashboardData();
   }, [user]);
 
   return (
@@ -90,35 +158,34 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="Agendamentos Hoje"
-          value="0"
-          subtitle="Próximo às 14:00"
+          value={metrics.todayAppointments.toString()}
+          subtitle={metrics.todayAppointments > 0 ? `${metrics.todayAppointments} agendamento${metrics.todayAppointments > 1 ? 's' : ''} hoje` : "Nenhum agendamento hoje"}
           icon={Calendar}
           variant="info"
         />
         
         <MetricCard
           title="Receita Hoje"
-          value="R$ 0,00"
-          subtitle="-100% em relação a ontem"
+          value={`R$ ${metrics.todayRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          subtitle={metrics.todayRevenue > 0 ? "Vendas realizadas hoje" : "Nenhuma venda hoje"}
           icon={DollarSign}
           variant="success"
         />
         
         <MetricCard
           title="Total de Clientes"
-          value="1"
-          subtitle="+5 novos esta semana"
+          value={metrics.totalClients.toString()}
+          subtitle={`${metrics.totalClients} cliente${metrics.totalClients !== 1 ? 's' : ''} cadastrado${metrics.totalClients !== 1 ? 's' : ''}`}
           icon={Users}
-          trend={{ value: 5, isPositive: true }}
           variant="default"
         />
         
         <MetricCard
           title="Estoque Baixo"
-          value="0"
-          subtitle="Produtos precisam reposição"
+          value={metrics.lowStock.toString()}
+          subtitle={metrics.lowStock > 0 ? "Produtos precisam reposição" : "Estoque em dia"}
           icon={AlertTriangle}
-          variant="warning"
+          variant={metrics.lowStock > 0 ? "warning" : "default"}
         />
       </div>
 
