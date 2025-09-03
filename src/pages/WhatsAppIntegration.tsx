@@ -1,346 +1,470 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { Copy, ExternalLink, QrCode, MessageCircle, Check } from "lucide-react";
-import QRCode from "qrcode";
+import { 
+  MessageCircle, 
+  Send, 
+  Clock, 
+  CheckCircle, 
+  Calendar,
+  BarChart3,
+  Settings,
+  HelpCircle,
+  Plus,
+  Edit,
+  Trash2
+} from "lucide-react";
 
-interface WhatsAppData {
-  numero: string;
-  mensagem: string;
+interface FlowConfig {
+  id: string;
+  name: string;
+  description: string;
+  message: string;
+  active: boolean;
+  triggers: number;
+}
+
+interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+  active: boolean;
+}
+
+interface Conversation {
+  id: string;
+  name: string;
+  message: string;
+  time: string;
+  status: 'respondida' | 'pendente' | 'finalizada';
 }
 
 export default function WhatsAppIntegration() {
-  const [data, setData] = useState<WhatsAppData>({
-    numero: "",
-    mensagem: "Olá! Estou interessado(a) em agendar um serviço no seu salão."
-  });
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isCopying, setIsCopying] = useState(false);
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
-  const [generatedLink, setGeneratedLink] = useState<string>("");
-  const [errors, setErrors] = useState<{ numero?: string; mensagem?: string }>({});
-
-  // Carrega dados do localStorage na inicialização
-  useEffect(() => {
-    const savedData = localStorage.getItem("whatsapp-integration");
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        setData(parsed);
-      } catch (error) {
-        console.error("Erro ao carregar dados salvos:", error);
-      }
+  const [flows, setFlows] = useState<FlowConfig[]>([
+    {
+      id: '1',
+      name: 'Confirmação de Agendamento',
+      description: 'Enviado automaticamente após criar um agendamento',
+      message: 'Olá {nome}! Seu agendamento foi confirmado para {data} às {hora} com {funcionario}. Confirme sua presença respondendo SIM.',
+      active: true,
+      triggers: 45
+    },
+    {
+      id: '2',
+      name: 'Lembrete 24h',
+      description: 'Lembrete enviado 24 horas antes do agendamento',
+      message: 'Oi {nome}! Lembrando que você tem agendamento amanhã às {hora} com {funcionario}. Confirme sua presença!',
+      active: true,
+      triggers: 38
+    },
+    {
+      id: '3',
+      name: 'Lembrete 2h',
+      description: 'Lembrete enviado 2 horas antes do agendamento',
+      message: 'Oi {nome}! Seu agendamento é em 2 horas às {hora} com {funcionario}. Nos vemos em breve!',
+      active: false,
+      triggers: 0
     }
-  }, []);
+  ]);
 
-  // Salva dados no localStorage quando houver mudanças
-  useEffect(() => {
-    localStorage.setItem("whatsapp-integration", JSON.stringify(data));
-  }, [data]);
-
-  // Validação do número de WhatsApp
-  const validarNumero = useCallback((numero: string): string | null => {
-    const clean = numero.replace(/[\s\-\(\)]/g, "");
-    
-    if (!clean) return "Número é obrigatório";
-    if (!/^\+\d{10,15}$/.test(clean)) {
-      return "Formato inválido. Use +55DDDNUMERO (ex: +5511987654321)";
+  const [faqs, setFaqs] = useState<FAQ[]>([
+    {
+      id: '1',
+      question: 'Qual o horário de funcionamento?',
+      answer: 'Funcionamos de segunda a sábado, das 8h às 18h. Domingos fechado.',
+      active: true
+    },
+    {
+      id: '2',
+      question: 'Quais serviços vocês oferecem?',
+      answer: 'Oferecemos cortes masculinos e femininos, barba, coloração, escova e tratamentos capilares.',
+      active: true
+    },
+    {
+      id: '3',
+      question: 'Como faço para agendar?',
+      answer: 'Você pode agendar pelo WhatsApp mesmo! Só me dizer o serviço desejado e sua preferência de data/horário.',
+      active: true
     }
-    if (clean.startsWith("+55") && clean.length !== 14) {
-      return "Número brasileiro deve ter 13 dígitos após +55";
+  ]);
+
+  const [conversations] = useState<Conversation[]>([
+    {
+      id: '1',
+      name: 'João Silva',
+      message: 'Confirmo meu agendamento para amanhã!',
+      time: '14:30',
+      status: 'respondida'
+    },
+    {
+      id: '2',
+      name: 'Maria Santos',
+      message: 'Qual o valor da coloração?',
+      time: '13:45',
+      status: 'pendente'
+    },
+    {
+      id: '3',
+      name: 'Pedro Costa',
+      message: 'Obrigado! Até sábado.',
+      time: '12:20',
+      status: 'finalizada'
     }
-    
-    return null;
-  }, []);
+  ]);
 
-  // Validação da mensagem
-  const validarMensagem = useCallback((mensagem: string): string | null => {
-    if (!mensagem.trim()) return "Mensagem padrão é obrigatória";
-    if (mensagem.length > 1000) return "Mensagem deve ter no máximo 1000 caracteres";
-    return null;
-  }, []);
+  const [webhookUrl, setWebhookUrl] = useState('');
 
-  // Gera link do WhatsApp
-  const gerarLinkWhatsApp = useCallback((numero: string, mensagem: string): string => {
-    const numeroLimpo = numero.replace(/[\s\-\(\)]/g, "").replace("+", "");
-    const mensagemCodificada = encodeURIComponent(mensagem.trim());
-    return `https://wa.me/${numeroLimpo}${mensagemCodificada ? `?text=${mensagemCodificada}` : ""}`;
-  }, []);
-
-  // Gera QR Code
-  const gerarQRCode = useCallback(async (link: string) => {
-    try {
-      const qrDataUrl = await QRCode.toDataURL(link, {
-        width: 200,
-        margin: 2,
-        color: {
-          dark: "#7c3aed", // cor primária do tema
-          light: "#ffffff"
-        }
-      });
-      setQrCodeDataUrl(qrDataUrl);
-    } catch (error) {
-      console.error("Erro ao gerar QR Code:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível gerar o QR Code",
-        variant: "destructive"
-      });
-    }
-  }, []);
-
-  // Handler para mudanças nos campos
-  const handleInputChange = useCallback((field: keyof WhatsAppData, value: string) => {
-    setData(prev => ({ ...prev, [field]: value }));
-    
-    // Remove erro específico quando usuário começa a digitar
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
-    }
-  }, [errors]);
-
-  // Gera link e QR Code
-  const handleGerarLink = useCallback(async () => {
-    const errosValidacao: { numero?: string; mensagem?: string } = {};
-    
-    const erroNumero = validarNumero(data.numero);
-    const erroMensagem = validarMensagem(data.mensagem);
-    
-    if (erroNumero) errosValidacao.numero = erroNumero;
-    if (erroMensagem) errosValidacao.mensagem = erroMensagem;
-    
-    setErrors(errosValidacao);
-    
-    if (Object.keys(errosValidacao).length > 0) {
-      toast({
-        title: "Erro de validação",
-        description: "Por favor, corrija os campos destacados",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsGenerating(true);
-    
-    try {
-      const link = gerarLinkWhatsApp(data.numero, data.mensagem);
-      setGeneratedLink(link);
-      await gerarQRCode(link);
-      
-      toast({
-        title: "Sucesso!",
-        description: "Link do WhatsApp gerado com sucesso",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao gerar link do WhatsApp",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [data, validarNumero, validarMensagem, gerarLinkWhatsApp, gerarQRCode]);
-
-  // Copia link para área de transferência
-  const handleCopiarLink = useCallback(async () => {
-    if (!generatedLink) return;
-    
-    setIsCopying(true);
-    
-    try {
-      await navigator.clipboard.writeText(generatedLink);
-      toast({
-        title: "Copiado!",
-        description: "Link copiado para a área de transferência",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível copiar o link",
-        variant: "destructive"
-      });
-    } finally {
-      setIsCopying(false);
-    }
-  }, [generatedLink]);
-
-  // Abre link no navegador
-  const handleTestarNavegador = useCallback(() => {
-    if (!generatedLink) return;
-    
-    window.open(generatedLink, "_blank", "noopener,noreferrer");
-    
+  const toggleFlow = (id: string) => {
+    setFlows(flows.map(flow => 
+      flow.id === id ? { ...flow, active: !flow.active } : flow
+    ));
     toast({
-      title: "Link aberto",
-      description: "Abrindo WhatsApp Web em nova aba",
+      title: "Fluxo atualizado",
+      description: "Configuração salva com sucesso!"
     });
-  }, [generatedLink]);
+  };
+
+  const toggleFAQ = (id: string) => {
+    setFaqs(faqs.map(faq => 
+      faq.id === id ? { ...faq, active: !faq.active } : faq
+    ));
+    toast({
+      title: "FAQ atualizada",
+      description: "Pergunta atualizada com sucesso!"
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'respondida': return 'bg-green-500/10 text-green-700 dark:text-green-400';
+      case 'pendente': return 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400';
+      case 'finalizada': return 'bg-blue-500/10 text-blue-700 dark:text-blue-400';
+      default: return 'bg-gray-500/10 text-gray-700 dark:text-gray-400';
+    }
+  };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-bold">Integração WhatsApp</h2>
+        <h2 className="text-3xl font-bold">WhatsApp</h2>
         <p className="text-muted-foreground mt-2">
-          Configure links personalizados do WhatsApp para seus clientes
+          Automação e atendimento via WhatsApp
         </p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Configuração */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5" />
-              Configuração
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Campo Número */}
-            <div className="space-y-2">
-              <Label htmlFor="numero">Número do WhatsApp</Label>
-              <Input
-                id="numero"
-                type="text"
-                value={data.numero}
-                onChange={(e) => handleInputChange("numero", e.target.value)}
-                placeholder="+5511987654321"
-                className={errors.numero ? "border-destructive" : ""}
-                aria-describedby={errors.numero ? "numero-error" : undefined}
-              />
-              {errors.numero && (
-                <p id="numero-error" className="text-sm text-destructive">
-                  {errors.numero}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Formato: +55 (código do país) + DDD + número
-              </p>
-            </div>
+      <Tabs defaultValue="dashboard" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="dashboard" className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Dashboard
+          </TabsTrigger>
+          <TabsTrigger value="flows" className="flex items-center gap-2">
+            <Send className="w-4 h-4" />
+            Fluxos Automáticos
+          </TabsTrigger>
+          <TabsTrigger value="faq" className="flex items-center gap-2">
+            <HelpCircle className="w-4 h-4" />
+            FAQ
+          </TabsTrigger>
+          <TabsTrigger value="config" className="flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Configurações
+          </TabsTrigger>
+        </TabsList>
 
-            {/* Campo Mensagem */}
-            <div className="space-y-2">
-              <Label htmlFor="mensagem">Mensagem Padrão</Label>
-              <Textarea
-                id="mensagem"
-                value={data.mensagem}
-                onChange={(e) => handleInputChange("mensagem", e.target.value)}
-                placeholder="Digite sua mensagem padrão..."
-                rows={4}
-                className={errors.mensagem ? "border-destructive" : ""}
-                aria-describedby={errors.mensagem ? "mensagem-error" : undefined}
-              />
-              {errors.mensagem && (
-                <p id="mensagem-error" className="text-sm text-destructive">
-                  {errors.mensagem}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {data.mensagem.length}/1000 caracteres
-              </p>
-            </div>
-
-            {/* Botão Gerar Link */}
-            <Button
-              onClick={handleGerarLink}
-              disabled={isGenerating}
-              className="w-full"
-              aria-label="Gerar link do WhatsApp"
-            >
-              {isGenerating ? "Gerando..." : "Gerar Link"}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Resultado */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Check className="w-5 h-5" />
-              Link Gerado
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {generatedLink ? (
-              <>
-                {/* Link Gerado */}
-                <div className="space-y-2">
-                  <Label>Link do WhatsApp</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={generatedLink}
-                      readOnly
-                      className="font-mono text-xs"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={handleCopiarLink}
-                      disabled={isCopying}
-                      aria-label="Copiar link"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
+        {/* Dashboard Tab */}
+        <TabsContent value="dashboard" className="space-y-6">
+          {/* Metrics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-blue-500/10">
+                    <Send className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Mensagens Enviadas</p>
+                    <p className="text-2xl font-bold">156</p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                {/* Botões de Ação */}
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={handleCopiarLink}
-                    disabled={isCopying}
-                    className="flex-1"
-                    aria-label="Copiar link para área de transferência"
-                  >
-                    <Copy className="w-4 h-4 mr-2" />
-                    {isCopying ? "Copiando..." : "Copiar Link"}
-                  </Button>
-                  
-                  <Button
-                    onClick={handleTestarNavegador}
-                    className="flex-1"
-                    aria-label="Abrir WhatsApp em nova aba"
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Testar no Navegador
-                  </Button>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-green-500/10">
+                    <MessageCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Mensagens Recebidas</p>
+                    <p className="text-2xl font-bold">89</p>
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                {/* QR Code */}
-                {qrCodeDataUrl && (
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <QrCode className="w-4 h-4" />
-                      QR Code
-                    </Label>
-                    <div className="flex justify-center">
-                      <img
-                        src={qrCodeDataUrl}
-                        alt="QR Code do link do WhatsApp"
-                        className="border rounded-lg"
-                      />
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-purple-500/10">
+                    <CheckCircle className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Taxa de Resposta</p>
+                    <p className="text-2xl font-bold">94%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-orange-500/10">
+                    <Calendar className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Agendamentos</p>
+                    <p className="text-2xl font-bold">23</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Conversations */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Conversas Recentes</CardTitle>
+              <p className="text-sm text-muted-foreground">Últimas interações com clientes</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {conversations.map((conv) => (
+                  <div key={conv.id} className="flex items-center justify-between p-4 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-medium">
+                        {conv.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-medium">{conv.name}</p>
+                        <p className="text-sm text-muted-foreground">{conv.message}</p>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground text-center">
-                      Escaneie com o celular para abrir diretamente no WhatsApp
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-muted-foreground">{conv.time}</span>
+                      <Badge className={getStatusColor(conv.status)}>
+                        {conv.status}
+                      </Badge>
+                    </div>
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <QrCode className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p>Configure os dados acima e clique em "Gerar Link"</p>
+                ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Flows Tab */}
+        <TabsContent value="flows" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Fluxos Automáticos</h3>
+              <p className="text-sm text-muted-foreground">Configure mensagens automáticas para diferentes situações</p>
+            </div>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Fluxo
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            {flows.map((flow) => (
+              <Card key={flow.id}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <Switch 
+                        checked={flow.active}
+                        onCheckedChange={() => toggleFlow(flow.id)}
+                      />
+                      <div>
+                        <h4 className="font-medium">{flow.name}</h4>
+                        <p className="text-sm text-muted-foreground">{flow.description}</p>
+                      </div>
+                    </div>
+                    <Badge variant={flow.active ? "default" : "secondary"}>
+                      {flow.active ? "Ativo" : "Inativo"}
+                    </Badge>
+                  </div>
+
+                  <div className="bg-muted/50 p-4 rounded-lg mb-4">
+                    <p className="text-sm italic">{flow.message}</p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      {flow.triggers} disparos realizados
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm">
+                        <Edit className="w-4 h-4 mr-2" />
+                        Editar
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Desativar
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* FAQ Tab */}
+        <TabsContent value="faq" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Perguntas Frequentes</h3>
+              <p className="text-sm text-muted-foreground">Configure respostas automáticas para perguntas comuns</p>
+            </div>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Pergunta
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            {faqs.map((faq) => (
+              <Card key={faq.id}>
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h4 className="font-medium mb-2">{faq.question}</h4>
+                      <p className="text-sm text-muted-foreground">{faq.answer}</p>
+                    </div>
+                    <Badge variant={faq.active ? "default" : "secondary"}>
+                      {faq.active ? "Ativo" : "Inativo"}
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Switch 
+                      checked={faq.active}
+                      onCheckedChange={() => toggleFAQ(faq.id)}
+                    />
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm">
+                        <Edit className="w-4 h-4 mr-2" />
+                        Editar
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Desativar
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* Configuration Tab */}
+        <TabsContent value="config" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Integração com N8N</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Configure o webhook para conectar com N8N e automatizar o envio de mensagens
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="webhook">URL do Webhook N8N</Label>
+                <Input
+                  id="webhook"
+                  placeholder="https://seu-n8n.com/webhook/whatsapp"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Este webhook será chamado para enviar mensagens automaticamente
+                </p>
+              </div>
+
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">Como configurar:</h4>
+                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>Crie um workflow no N8N com trigger webhook</li>
+                  <li>Adicione um nó do WhatsApp Business API</li>
+                  <li>Configure as credenciais do WhatsApp</li>
+                  <li>Cole a URL do webhook aqui</li>
+                  <li>Teste a integração</li>
+                </ol>
+              </div>
+
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  <strong>Importante:</strong> Você precisará configurar uma conta do WhatsApp Business API 
+                  e conectá-la ao N8N para que as mensagens sejam enviadas automaticamente.
+                </p>
+              </div>
+
+              <Button className="w-full">
+                Salvar Configurações
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Campos Disponíveis</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Use estes campos nas suas mensagens automáticas
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <code className="text-sm bg-muted px-2 py-1 rounded">{"{nome}"}</code>
+                  <p className="text-xs text-muted-foreground">Nome do cliente</p>
+                </div>
+                <div className="space-y-2">
+                  <code className="text-sm bg-muted px-2 py-1 rounded">{"{data}"}</code>
+                  <p className="text-xs text-muted-foreground">Data do agendamento</p>
+                </div>
+                <div className="space-y-2">
+                  <code className="text-sm bg-muted px-2 py-1 rounded">{"{hora}"}</code>
+                  <p className="text-xs text-muted-foreground">Horário do agendamento</p>
+                </div>
+                <div className="space-y-2">
+                  <code className="text-sm bg-muted px-2 py-1 rounded">{"{funcionario}"}</code>
+                  <p className="text-xs text-muted-foreground">Nome do profissional</p>
+                </div>
+                <div className="space-y-2">
+                  <code className="text-sm bg-muted px-2 py-1 rounded">{"{servico}"}</code>
+                  <p className="text-xs text-muted-foreground">Serviço agendado</p>
+                </div>
+                <div className="space-y-2">
+                  <code className="text-sm bg-muted px-2 py-1 rounded">{"{telefone}"}</code>
+                  <p className="text-xs text-muted-foreground">Telefone do cliente</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
