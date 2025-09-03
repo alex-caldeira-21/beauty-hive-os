@@ -30,16 +30,16 @@ export function Sidebar() {
   const location = useLocation();
 
   return (
-    <div className="w-64 min-h-screen bg-gradient-to-b from-primary to-purple-800 text-primary-foreground flex flex-col">
+    <div className="w-64 min-h-screen bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border">
       {/* Logo/Brand */}
-      <div className="p-6 border-b border-white/10">
+      <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-            <span className="text-xl font-bold">✂</span>
+          <div className="w-10 h-10 bg-sidebar-accent rounded-lg flex items-center justify-center">
+            <span className="text-xl font-bold text-sidebar-accent-foreground">✂</span>
           </div>
           <div>
-            <h1 className="text-xl font-bold">Hair Salon</h1>
-            <p className="text-sm text-white/70">ERP System</p>
+            <h1 className="text-xl font-bold text-sidebar-foreground">Hair Salon</h1>
+            <p className="text-sm text-sidebar-muted-foreground">ERP System</p>
           </div>
         </div>
       </div>
@@ -56,8 +56,8 @@ export function Sidebar() {
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
                     isActive
-                      ? "bg-white/20 text-white shadow-lg"
-                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-lg"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
                   )}
                 >
                   <item.icon className="w-5 h-5" />
@@ -70,23 +70,23 @@ export function Sidebar() {
       </nav>
 
       {/* User Profile */}
-      <div className="p-4 border-t border-white/10">
+      <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium">AS</span>
+          <div className="w-10 h-10 bg-sidebar-accent rounded-full flex items-center justify-center">
+            <span className="text-sm font-medium text-sidebar-accent-foreground">AS</span>
           </div>
           <div>
-            <p className="text-sm font-medium">Admin User</p>
-            <p className="text-xs text-white/70">admin@salon.com</p>
+            <p className="text-sm font-medium text-sidebar-foreground">Admin User</p>
+            <p className="text-xs text-sidebar-muted-foreground">admin@salon.com</p>
           </div>
         </div>
         
         <div className="flex gap-2">
-          <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-white/10 hover:bg-white/20 transition-colors">
+          <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm bg-sidebar-accent/50 hover:bg-sidebar-accent transition-colors text-sidebar-foreground hover:text-sidebar-accent-foreground">
             <Settings className="w-4 h-4" />
             Config
           </button>
-          <button className="flex items-center justify-center px-3 py-2 rounded-lg text-sm bg-white/10 hover:bg-white/20 transition-colors">
+          <button className="flex items-center justify-center px-3 py-2 rounded-lg text-sm bg-sidebar-accent/50 hover:bg-sidebar-accent transition-colors text-sidebar-foreground hover:text-sidebar-accent-foreground">
             <LogOut className="w-4 h-4" />
           </button>
         </div>

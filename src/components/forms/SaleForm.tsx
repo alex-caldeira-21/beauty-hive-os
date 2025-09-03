@@ -297,25 +297,6 @@ export function SaleForm({ onSuccess, onCancel }: SaleFormProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Serviço</Label>
-                    <Select
-                      value={watch(`items.${index}.service_id`)}
-                      onValueChange={(value) => handleServiceChange(index, value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Serviço" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {services.map((service) => (
-                          <SelectItem key={service.id} value={service.id}>
-                            {service.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
                     <Label>Quantidade</Label>
                     <Input
                       type="number"
