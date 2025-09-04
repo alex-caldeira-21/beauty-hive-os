@@ -18,6 +18,7 @@ import autoTable from 'jspdf-autotable';
 export default function Reports() {
   const { user } = useAuth();
   const [period, setPeriod] = useState("30");
+  const [reportType, setReportType] = useState("all");
   const [stats, setStats] = useState({
     totalRevenue: 0,
     totalAppointments: 0,
@@ -29,7 +30,7 @@ export default function Reports() {
 
   useEffect(() => {
     loadReportData();
-  }, [user, period]);
+  }, [user, period, reportType]);
 
   const loadReportData = async () => {
     if (!user) return;
@@ -93,8 +94,10 @@ export default function Reports() {
       });
 
       // Preparar dados para exportação
-      const reportItems = [
-        ...(salesData || []).map(sale => ({
+      let reportItems = [];
+
+      if (reportType === 'all' || reportType === 'sales') {
+        reportItems.push(...(salesData || []).map(sale => ({
           type: 'Venda',
           date: sale.sale_date,
           client: sale.clients?.name || 'N/A',
@@ -103,8 +106,11 @@ export default function Reports() {
             item.products?.name || item.services?.name).join(', ') || 'N/A',
           amount: sale.total,
           payment: sale.payment_method,
-        })),
-        ...(appointmentsData || []).map(app => ({
+        })));
+      }
+
+      if (reportType === 'all' || reportType === 'appointments') {
+        reportItems.push(...(appointmentsData || []).map(app => ({
           type: 'Agendamento',
           date: app.appointment_date,
           client: app.clients?.name || 'N/A',
@@ -113,8 +119,10 @@ export default function Reports() {
           amount: app.price || 0,
           payment: 'N/A',
           status: app.status,
-        }))
-      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        })));
+      }
+
+      reportItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       setReportData(reportItems);
     } catch (error: any) {
@@ -258,6 +266,17 @@ export default function Reports() {
         </div>
         
         <div className="flex gap-2">
+          <Select value={reportType} onValueChange={setReportType}>
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="sales">Vendas</SelectItem>
+              <SelectItem value="appointments">Agendamentos</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="Período" />

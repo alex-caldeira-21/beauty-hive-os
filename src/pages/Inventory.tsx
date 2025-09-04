@@ -111,6 +111,14 @@ export default function Inventory() {
     inStock: products.filter(p => p.stock_quantity > p.min_stock_alert).length,
     lowStock: products.filter(p => p.stock_quantity <= p.min_stock_alert && p.stock_quantity > 0).length,
     outOfStock: products.filter(p => p.stock_quantity === 0).length,
+    totalValue: products.reduce((sum, p) => sum + (Number(p.cost || 0) * Number(p.stock_quantity || 0)), 0),
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
   };
 
   if (isLoading) {
@@ -228,31 +236,60 @@ export default function Inventory() {
       )}
 
       {/* Inventory Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Resumo do Estoque</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-primary">{stats.total}</p>
-              <p className="text-sm text-muted-foreground">Total de Produtos</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Resumo do Estoque</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <p className="text-3xl font-bold text-primary">{stats.total}</p>
+                <p className="text-sm text-muted-foreground">Total de Produtos</p>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl font-bold text-success">{stats.inStock}</p>
+                <p className="text-sm text-muted-foreground">Em Estoque</p>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl font-bold text-warning">{stats.lowStock}</p>
+                <p className="text-sm text-muted-foreground">Estoque Baixo</p>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl font-bold text-destructive">{stats.outOfStock}</p>
+                <p className="text-sm text-muted-foreground">Sem Estoque</p>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Valor Total do Estoque</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="text-center">
-              <p className="text-3xl font-bold text-success">{stats.inStock}</p>
-              <p className="text-sm text-muted-foreground">Em Estoque</p>
+              <p className="text-4xl font-bold text-success mb-2">{formatCurrency(stats.totalValue)}</p>
+              <p className="text-sm text-muted-foreground">Baseado no preço de custo dos produtos</p>
+              <div className="mt-4 p-4 bg-muted rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1">Detalhamento:</p>
+                <div className="text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span>Produtos em estoque:</span>
+                    <span className="font-medium">{stats.inStock + stats.lowStock}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Valor médio por produto:</span>
+                    <span className="font-medium">
+                      {stats.total > 0 ? formatCurrency(stats.totalValue / stats.total) : 'R$ 0,00'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-warning">{stats.lowStock}</p>
-              <p className="text-sm text-muted-foreground">Estoque Baixo</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-destructive">{stats.outOfStock}</p>
-              <p className="text-sm text-muted-foreground">Sem Estoque</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Form Modal */}
       <FormModal
