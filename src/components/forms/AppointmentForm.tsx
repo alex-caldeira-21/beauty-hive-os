@@ -338,9 +338,24 @@ export function AppointmentForm({ onSuccess, appointment }: AppointmentFormProps
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Horário de Início</FormLabel>
-                <FormControl>
-                  <Input type="time" {...field} />
-                </FormControl>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o horário" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {Array.from({ length: 16 }, (_, i) => {
+                      const hour = i + 7; // 7:00 às 22:00
+                      const timeValue = `${hour.toString().padStart(2, '0')}:00`;
+                      return (
+                        <SelectItem key={timeValue} value={timeValue}>
+                          {timeValue}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

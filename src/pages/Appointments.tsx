@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import { FormModal } from "@/components/modals/FormModal";
 import { AppointmentForm } from "@/components/forms/AppointmentForm";
+import { WeeklyCalendar } from "@/components/ui/weekly-calendar";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -245,62 +246,92 @@ export default function Appointments() {
         </Button>
       </div>
 
+      {/* Weekly Calendar */}
+      <WeeklyCalendar
+        selectedDate={selectedDate}
+        onDateChange={handleDateChange}
+        appointments={appointments.map(apt => ({
+          id: apt.id,
+          start_time: apt.start_time,
+          end_time: apt.end_time,
+          client_name: apt.clients?.name,
+          service_name: apt.services?.name,
+          status: apt.status
+        }))}
+        onTimeSlotClick={(date, time) => {
+          setSelectedDate(date);
+          handleNovoAgendamento();
+        }}
+      />
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => handleDateChange(e.target.value)}
-            className="w-auto"
-            aria-label="Selecionar data dos agendamentos"
-          />
-        </div>
-        
         <Input
           placeholder="Buscar por cliente, serviço ou funcionário..."
           value={searchTerm}
           onChange={(e) => handleSearch(e.target.value)}
-          className="max-w-md"
+          className="flex-1"
           aria-label="Buscar agendamentos"
         />
         
-        <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filtrar por funcionário" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos funcionários</SelectItem>
-            {employees.map((employee) => (
-              <SelectItem key={employee.id} value={employee.id}>
-                {employee.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={clientFilter} onValueChange={setClientFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filtrar por cliente" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos clientes</SelectItem>
-            {clients.map((client) => (
-              <SelectItem key={client.id} value={client.id}>
-                {client.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Input
-          type="time"
-          value={timeFilter}
-          onChange={(e) => setTimeFilter(e.target.value)}
-          className="w-40"
-          placeholder="Filtrar por horário"
-        />
+        <div className="flex gap-2">
+          <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Funcionário" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos funcionários</SelectItem>
+              {employees.map((employee) => (
+                <SelectItem key={employee.id} value={employee.id}>
+                  {employee.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select value={clientFilter} onValueChange={setClientFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Cliente" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos clientes</SelectItem>
+              {clients.map((client) => (
+                <SelectItem key={client.id} value={client.id}>
+                  {client.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select value={timeFilter} onValueChange={setTimeFilter}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Horário" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todos horários</SelectItem>
+              <SelectItem value="07">07:00</SelectItem>
+              <SelectItem value="08">08:00</SelectItem>
+              <SelectItem value="09">09:00</SelectItem>
+              <SelectItem value="10">10:00</SelectItem>
+              <SelectItem value="11">11:00</SelectItem>
+              <SelectItem value="12">12:00</SelectItem>
+              <SelectItem value="13">13:00</SelectItem>
+              <SelectItem value="14">14:00</SelectItem>
+              <SelectItem value="15">15:00</SelectItem>
+              <SelectItem value="16">16:00</SelectItem>
+              <SelectItem value="17">17:00</SelectItem>
+              <SelectItem value="18">18:00</SelectItem>
+              <SelectItem value="19">19:00</SelectItem>
+              <SelectItem value="20">20:00</SelectItem>
+              <SelectItem value="21">21:00</SelectItem>
+              <SelectItem value="22">22:00</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Button variant="outline" onClick={handleFiltros}>
+            <Filter className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Daily Summary */}

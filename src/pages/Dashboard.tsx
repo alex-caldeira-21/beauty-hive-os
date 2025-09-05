@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { WeeklyCalendar } from "@/components/ui/weekly-calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   LineChart, 
@@ -193,53 +194,22 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <QuickActions />
         
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Próximos Agendamentos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                <p>Carregando agendamentos...</p>
-              </div>
-            ) : upcomingAppointments.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum agendamento encontrado</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingAppointments.map((appointment) => (
-                  <div 
-                    key={appointment.id} 
-                    className="flex items-center justify-between p-3 border rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="w-4 h-4" />
-                        {new Date(appointment.appointment_date).toLocaleDateString('pt-BR')}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4" />
-                        {appointment.start_time}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-2 font-medium">
-                        <User className="w-4 h-4" />
-                        {appointment.clients?.name}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {appointment.services?.name}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-2">
+          <WeeklyCalendar
+            selectedDate={new Date().toISOString().split('T')[0]}
+            onDateChange={() => {}}
+            appointments={upcomingAppointments.map(apt => ({
+              id: apt.id,
+              start_time: apt.start_time,
+              end_time: apt.end_time || apt.start_time,
+              client_name: apt.clients?.name,
+              service_name: apt.services?.name,
+              status: apt.status
+            }))}
+            compact={true}
+            className="h-fit"
+          />
+        </div>
       </div>
 
       {/* Charts */}
