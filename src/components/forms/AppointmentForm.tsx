@@ -94,26 +94,35 @@ export function AppointmentForm({ onSuccess, appointment }: AppointmentFormProps
 
   // Calcular preço total e horário de fim quando serviços ou horário de início mudam
   useEffect(() => {
+    if (selectedServices.length > 0) {
+      const startTime = form.getValues("start_time");
+      const endTime = calculateEndTime(startTime, selectedServices);
+      setCalculatedEndTime(endTime);
+
+      // Calcular preço total
+      const totalPrice = selectedServices.reduce((total, serviceId) => {
+        const service = services.find(s => s.id === serviceId);
+        return total + (Number(service?.price) || 0);
+      }, 0);
+
+      if (totalPrice > 0) {
+        form.setValue("price", totalPrice.toString(), { shouldValidate: false });
+      }
+    }
+  }, [selectedServices, services]);
+
+  // Separar o watch do start_time para evitar loop infinito
+  useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === 'start_time' || selectedServices.length > 0) {
-        const startTime = value.start_time || form.getValues("start_time");
+      if (name === 'start_time' && selectedServices.length > 0) {
+        const startTime = value.start_time || "";
         const endTime = calculateEndTime(startTime, selectedServices);
         setCalculatedEndTime(endTime);
-
-        // Calcular preço total
-        const totalPrice = selectedServices.reduce((total, serviceId) => {
-          const service = services.find(s => s.id === serviceId);
-          return total + (Number(service?.price) || 0);
-        }, 0);
-
-        if (totalPrice > 0) {
-          form.setValue("price", totalPrice.toString());
-        }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [selectedServices, services, form]);
+  }, [selectedServices, form]);
 
   const loadFormData = async () => {
     if (!user?.id) return;
