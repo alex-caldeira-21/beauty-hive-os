@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BarChart3, TrendingUp, Calendar, Download } from "lucide-react";
+import { BarChart3, TrendingUp, Calendar, Download, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -19,6 +19,8 @@ export default function Reports() {
   const { user } = useAuth();
   const [period, setPeriod] = useState("30");
   const [reportType, setReportType] = useState("all");
+  const [selectedEmployee, setSelectedEmployee] = useState("all");
+  const [employees, setEmployees] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalRevenue: 0,
     totalAppointments: 0,
@@ -26,11 +28,33 @@ export default function Reports() {
     averageTicket: 0,
   });
   const [reportData, setReportData] = useState<any[]>([]);
+  const [employeeStats, setEmployeeStats] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    loadEmployees();
+  }, [user]);
+
+  useEffect(() => {
     loadReportData();
-  }, [user, period, reportType]);
+  }, [user, period, reportType, selectedEmployee]);
+
+  const loadEmployees = async () => {
+    if (!user) return;
+
+    try {
+      const { data: employeesData, error } = await supabase
+        .from("employees")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("status", "active");
+
+      if (error) throw error;
+      setEmployees(employeesData || []);
+    } catch (error) {
+      console.error("Erro ao carregar funcionários:", error);
+    }
+  };
 
   const loadReportData = async () => {
     if (!user) return;
@@ -55,16 +79,22 @@ export default function Reports() {
       if (salesError) throw salesError;
 
       // Buscar agendamentos
-      const { data: appointmentsData, error: appointmentsError } = await supabase
+      let appointmentsQuery = supabase
         .from("appointments")
         .select(`
           *,
           clients(name),
-          employees(name),
-          services(name)
+          employees(name, commission_percentage),
+          services(name, price)
         `)
         .eq("user_id", user.id)
         .gte("appointment_date", startDate.toISOString().split('T')[0]);
+
+      if (selectedEmployee !== "all") {
+        appointmentsQuery = appointmentsQuery.eq("employee_id", selectedEmployee);
+      }
+
+      const { data: appointmentsData, error: appointmentsError } = await appointmentsQuery;
 
       if (appointmentsError) throw appointmentsError;
 
@@ -125,6 +155,51 @@ export default function Reports() {
       reportItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       setReportData(reportItems);
+
+      // Calcular estatísticas por funcionário
+      if (selectedEmployee !== "all") {
+        const employee = employees.find(emp => emp.id === selectedEmployee);
+        const employeeAppointments = (appointmentsData || []).filter(app => app.status === 'completed');
+        const servicesCount = employeeAppointments.length;
+        const totalRevenue = employeeAppointments.reduce((sum, app) => sum + Number(app.price || 0), 0);
+        const commissionPercentage = employee?.commission_percentage || 0;
+        const totalCommission = totalRevenue * (commissionPercentage / 100);
+
+        setEmployeeStats([{
+          employee_name: employee?.name || 'N/A',
+          services_count: servicesCount,
+          total_revenue: totalRevenue,
+          commission_percentage: commissionPercentage,
+          total_commission: totalCommission
+        }]);
+      } else {
+        // Calcular estatísticas para todos os funcionários
+        const employeeStatsMap = new Map();
+        
+        (appointmentsData || []).filter(app => app.status === 'completed').forEach(app => {
+          const empId = app.employee_id;
+          const empName = app.employees?.name || 'N/A';
+          const empCommission = app.employees?.commission_percentage || 0;
+          const revenue = Number(app.price || 0);
+          
+          if (!employeeStatsMap.has(empId)) {
+            employeeStatsMap.set(empId, {
+              employee_name: empName,
+              services_count: 0,
+              total_revenue: 0,
+              commission_percentage: empCommission,
+              total_commission: 0
+            });
+          }
+          
+          const stats = employeeStatsMap.get(empId);
+          stats.services_count += 1;
+          stats.total_revenue += revenue;
+          stats.total_commission = stats.total_revenue * (stats.commission_percentage / 100);
+        });
+        
+        setEmployeeStats(Array.from(employeeStatsMap.values()));
+      }
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -265,7 +340,21 @@ export default function Reports() {
           <p className="text-muted-foreground">Análise detalhada do seu negócio</p>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Funcionário" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos funcionários</SelectItem>
+              {employees.map((employee) => (
+                <SelectItem key={employee.id} value={employee.id}>
+                  {employee.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Select value={reportType} onValueChange={setReportType}>
             <SelectTrigger className="w-36">
               <SelectValue placeholder="Tipo" />
@@ -356,6 +445,45 @@ export default function Reports() {
         </Card>
       </div>
 
+      {/* Performance por Funcionário */}
+      {employeeStats.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Performance dos Funcionários
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              {employeeStats.map((emp, index) => (
+                <div key={index} className="border rounded-lg p-4 space-y-2">
+                  <h4 className="font-semibold text-lg">{emp.employee_name}</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-primary">{emp.services_count}</p>
+                      <p className="text-sm text-muted-foreground">Serviços</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-success">{formatCurrency(emp.total_revenue)}</p>
+                      <p className="text-sm text-muted-foreground">Receita</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-info">{emp.commission_percentage}%</p>
+                      <p className="text-sm text-muted-foreground">Comissão</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-warning">{formatCurrency(emp.total_commission)}</p>
+                      <p className="text-sm text-muted-foreground">Total Comissão</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Report Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
@@ -404,7 +532,7 @@ export default function Reports() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Performance da Equipe</CardTitle>
+            <CardTitle>Resumo Geral</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             {isLoading ? (
