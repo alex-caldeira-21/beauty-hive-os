@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +30,20 @@ interface ServiceFormProps {
 export function ServiceForm({ onSuccess, initialData, isEditing = false }: ServiceFormProps) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [customCategory, setCustomCategory] = useState(false);
+
+  const predefinedCategories = [
+    "Cabelo",
+    "Unhas", 
+    "Estética Facial",
+    "Estética Corporal",
+    "Massagem",
+    "Depilação",
+    "Sobrancelhas",
+    "Coloração",
+    "Tratamentos Capilares",
+    "Maquiagem"
+  ];
 
   const form = useForm<ServiceFormData>({
     resolver: zodResolver(serviceSchema),
@@ -40,6 +55,17 @@ export function ServiceForm({ onSuccess, initialData, isEditing = false }: Servi
       duration_minutes: "60",
     },
   });
+
+  // Check if the initial category is not in predefined categories
+  const initialCategory = initialData?.category;
+  const isInitialCategoryCustom = initialCategory && !predefinedCategories.includes(initialCategory);
+  
+  // Set custom category state based on initial data
+  useEffect(() => {
+    if (isInitialCategoryCustom) {
+      setCustomCategory(true);
+    }
+  }, [isInitialCategoryCustom]);
 
   const onSubmit = async (data: ServiceFormData) => {
     if (!user?.id) return;
@@ -115,7 +141,52 @@ export function ServiceForm({ onSuccess, initialData, isEditing = false }: Servi
               <FormItem>
                 <FormLabel>Categoria</FormLabel>
                 <FormControl>
-                  <Input placeholder="Cabelo, Unhas, Estética..." {...field} />
+                  {customCategory ? (
+                    <div className="space-y-2">
+                      <Input 
+                        placeholder="Digite a nova categoria..." 
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setCustomCategory(false);
+                          field.onChange("");
+                        }}
+                      >
+                        Voltar para categorias
+                      </Button>
+                    </div>
+                  ) : (
+                    <Select 
+                      value={field.value || ""} 
+                      onValueChange={(value) => {
+                        if (value === "custom") {
+                          setCustomCategory(true);
+                          field.onChange("");
+                        } else {
+                          field.onChange(value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {predefinedCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="custom">
+                          + Criar nova categoria
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </FormControl>
                 <FormMessage />
               </FormItem>
