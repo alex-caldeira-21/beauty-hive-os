@@ -153,7 +153,7 @@ export function ProductForm({ onSuccess, onCancel, initialData }: ProductFormPro
             <div className="space-y-2">
               <Label htmlFor="category">Categoria *</Label>
               <Select
-                value={watch("category")}
+                value={watch("category") || undefined}
                 onValueChange={(value) => setValue("category", value)}
               >
                 <SelectTrigger className={errors.category ? "border-destructive" : ""}>

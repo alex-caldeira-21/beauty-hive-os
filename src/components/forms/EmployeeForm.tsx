@@ -177,7 +177,7 @@ export function EmployeeForm({ onSuccess, onCancel, initialData }: EmployeeFormP
             <div className="space-y-2">
               <Label htmlFor="role">Cargo *</Label>
               <Select
-                value={watch("role")}
+                value={watch("role") || undefined}
                 onValueChange={(value) => setValue("role", value)}
               >
                 <SelectTrigger className={errors.role ? "border-destructive" : ""}>

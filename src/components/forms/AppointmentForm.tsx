@@ -218,7 +218,7 @@ export function AppointmentForm({ onSuccess, appointment }: AppointmentFormProps
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Cliente</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um cliente" />
@@ -243,7 +243,7 @@ export function AppointmentForm({ onSuccess, appointment }: AppointmentFormProps
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Funcionário</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um funcionário" />
@@ -338,7 +338,7 @@ export function AppointmentForm({ onSuccess, appointment }: AppointmentFormProps
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Horário de Início</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o horário" />
