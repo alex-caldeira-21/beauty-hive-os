@@ -252,8 +252,8 @@ export default function Appointments() {
         onDateChange={handleDateChange}
         appointments={appointments.map(apt => ({
           id: apt.id,
-          start_time: apt.start_time,
-          end_time: apt.end_time,
+          start_time: `${apt.appointment_date}T${apt.start_time}`,
+          end_time: `${apt.appointment_date}T${apt.end_time}`,
           client_name: apt.clients?.name,
           service_name: apt.services?.name,
           status: apt.status

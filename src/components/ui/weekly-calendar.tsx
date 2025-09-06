@@ -107,19 +107,29 @@ export function WeeklyCalendar({
     }
     
     const dateStr = date.toISOString().split('T')[0];
+    
     return appointments.filter(apt => {
       // Verificar se apt.start_time existe e é válido
       if (!apt.start_time) return false;
       
       try {
-        const aptDateObj = new Date(apt.start_time);
-        if (isNaN(aptDateObj.getTime())) return false;
-        
-        const aptDate = aptDateObj.toISOString().split('T')[0];
-        const aptTime = apt.start_time.split('T')[1]?.substring(0, 5) || apt.start_time;
-        return aptDate === dateStr && aptTime === time;
+        // Se start_time tem formato de data completa (ISO string com data e hora)
+        if (apt.start_time.includes('T')) {
+          const aptDateObj = new Date(apt.start_time);
+          if (isNaN(aptDateObj.getTime())) return false;
+          
+          const aptDate = aptDateObj.toISOString().split('T')[0];
+          const aptTime = aptDateObj.toTimeString().substring(0, 5); // HH:MM
+          
+          return aptDate === dateStr && aptTime === time;
+        } else {
+          // Se start_time é apenas horário (formato HH:MM:SS ou HH:MM)
+          // Neste caso, assumimos que o appointment já está filtrado por data
+          const aptTime = apt.start_time.substring(0, 5); // Pega apenas HH:MM
+          return aptTime === time;
+        }
       } catch (error) {
-        console.warn('Invalid appointment date:', apt.start_time);
+        console.warn('Invalid appointment time format:', apt.start_time, error);
         return false;
       }
     });

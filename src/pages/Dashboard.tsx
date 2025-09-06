@@ -91,7 +91,12 @@ export default function Dashboard() {
           .gte('appointment_date', sevenDaysAgo)
           .order('appointment_date');
 
-        // Upcoming appointments
+        // Upcoming appointments (current week)
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of current week
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6); // End of current week
+        
         const { data: upcomingData } = await supabase
           .from('appointments')
           .select(`
@@ -101,11 +106,10 @@ export default function Dashboard() {
             services(name)
           `)
           .eq('user_id', user.id)
-          .gte('appointment_date', today)
-          .eq('status', 'scheduled')
+          .gte('appointment_date', weekStart.toISOString().split('T')[0])
+          .lte('appointment_date', weekEnd.toISOString().split('T')[0])
           .order('appointment_date')
-          .order('start_time')
-          .limit(5);
+          .order('start_time');
 
         // Process metrics
         setMetrics({
@@ -200,8 +204,8 @@ export default function Dashboard() {
             onDateChange={() => {}}
             appointments={upcomingAppointments.map(apt => ({
               id: apt.id,
-              start_time: apt.start_time,
-              end_time: apt.end_time || apt.start_time,
+              start_time: `${apt.appointment_date}T${apt.start_time}`,
+              end_time: `${apt.appointment_date}T${apt.end_time || apt.start_time}`,
               client_name: apt.clients?.name,
               service_name: apt.services?.name,
               status: apt.status
