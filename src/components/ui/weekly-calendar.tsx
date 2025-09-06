@@ -101,9 +101,20 @@ export function WeeklyCalendar({
 
   // Obter agendamentos para uma data e horário específicos
   const getAppointmentsForSlot = (date: Date, time: string) => {
+    // Verificar se a data é válida
+    if (!date || isNaN(date.getTime())) {
+      return [];
+    }
+    
     const dateStr = date.toISOString().split('T')[0];
     return appointments.filter(apt => {
-      const aptDate = new Date(apt.start_time).toISOString().split('T')[0];
+      // Verificar se apt.start_time existe e é válido
+      if (!apt.start_time) return false;
+      
+      const aptDateObj = new Date(apt.start_time);
+      if (isNaN(aptDateObj.getTime())) return false;
+      
+      const aptDate = aptDateObj.toISOString().split('T')[0];
       const aptTime = apt.start_time.split('T')[1]?.substring(0, 5) || apt.start_time;
       return aptDate === dateStr && aptTime === time;
     });
