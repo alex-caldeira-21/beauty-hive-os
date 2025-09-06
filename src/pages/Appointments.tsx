@@ -41,7 +41,7 @@ export default function Appointments() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const [clientFilter, setClientFilter] = useState<string>("all");
-  const [timeFilter, setTimeFilter] = useState("");
+  const [timeFilter, setTimeFilter] = useState("all");
 
   useEffect(() => {
     if (searchParams.get("action") === "new") {
@@ -197,7 +197,7 @@ export default function Appointments() {
     
     const matchesEmployee = employeeFilter === "all" || appointment.employee_id === employeeFilter;
     const matchesClient = clientFilter === "all" || appointment.client_id === clientFilter;
-    const matchesTime = !timeFilter || appointment.start_time.startsWith(timeFilter);
+    const matchesTime = timeFilter === "all" || appointment.start_time.startsWith(timeFilter);
     
     return matchesSearch && matchesEmployee && matchesClient && matchesTime;
   });
@@ -308,7 +308,7 @@ export default function Appointments() {
               <SelectValue placeholder="Horário" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos horários</SelectItem>
+              <SelectItem value="all">Todos horários</SelectItem>
               <SelectItem value="07">07:00</SelectItem>
               <SelectItem value="08">08:00</SelectItem>
               <SelectItem value="09">09:00</SelectItem>
