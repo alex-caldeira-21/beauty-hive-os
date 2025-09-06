@@ -162,7 +162,7 @@ export function ServiceForm({ onSuccess, initialData, isEditing = false }: Servi
                     </div>
                   ) : (
                     <Select 
-                      value={field.value || ""} 
+                      value={field.value || undefined} 
                       onValueChange={(value) => {
                         if (value === "custom") {
                           setCustomCategory(true);
