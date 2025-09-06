@@ -230,6 +230,16 @@ export default function Login() {
         <p className="text-center text-sm text-muted-foreground mt-6">
           Sistema desenvolvido para salões de beleza
         </p>
+        
+        <div className="text-center mt-4">
+          <Button 
+            variant="link" 
+            onClick={() => navigate("/new-login")}
+            className="text-primary"
+          >
+            Experimentar nova interface de login
+          </Button>
+        </div>
       </div>
     </div>
   );

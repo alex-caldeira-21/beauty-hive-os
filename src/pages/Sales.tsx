@@ -229,6 +229,12 @@ export default function Sales() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => {
+                        toast({
+                          title: "Detalhes da Venda",
+                          description: `Venda #${sale.id.slice(-8).toUpperCase()} - Total: ${formatCurrency(sale.total)}`,
+                        });
+                      }}
                     >
                       <Eye className="w-4 h-4" />
                     </Button>
