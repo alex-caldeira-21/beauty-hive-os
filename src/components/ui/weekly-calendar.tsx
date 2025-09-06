@@ -111,12 +111,17 @@ export function WeeklyCalendar({
       // Verificar se apt.start_time existe e é válido
       if (!apt.start_time) return false;
       
-      const aptDateObj = new Date(apt.start_time);
-      if (isNaN(aptDateObj.getTime())) return false;
-      
-      const aptDate = aptDateObj.toISOString().split('T')[0];
-      const aptTime = apt.start_time.split('T')[1]?.substring(0, 5) || apt.start_time;
-      return aptDate === dateStr && aptTime === time;
+      try {
+        const aptDateObj = new Date(apt.start_time);
+        if (isNaN(aptDateObj.getTime())) return false;
+        
+        const aptDate = aptDateObj.toISOString().split('T')[0];
+        const aptTime = apt.start_time.split('T')[1]?.substring(0, 5) || apt.start_time;
+        return aptDate === dateStr && aptTime === time;
+      } catch (error) {
+        console.warn('Invalid appointment date:', apt.start_time);
+        return false;
+      }
     });
   };
 
