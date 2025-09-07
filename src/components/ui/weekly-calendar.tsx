@@ -49,7 +49,8 @@ export function WeeklyCalendar({
     const d = new Date(date);
     const day = d.getDay();
     const diff = d.getDate() - day;
-    return new Date(d.setDate(diff));
+    d.setDate(diff);
+    return d;
   };
 
   // Função para gerar os dias da semana
