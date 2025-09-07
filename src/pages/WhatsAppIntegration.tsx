@@ -123,44 +123,46 @@ export default function WhatsAppIntegration() {
   ]);
 
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [businessName, setBusinessName] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   const handleGenerateQr = async () => {
+    if (!businessName.trim()) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Por favor, informe o nome do seu negócio.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const url = webhookUrl || 'https://tecnia-n8n.thegkr.easypanel.host/webhook/criaqrcode';
     
     setIsGenerating(true);
     
     try {
-      // Try POST first
-      let response = await fetch(url, {
+      const payload = {
+        business_name: businessName.trim(),
+        origin: window.location.origin
+      };
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        mode: 'no-cors'
+        mode: 'cors',
+        body: JSON.stringify(payload)
       });
 
-      // If no-cors, we can't check status, so try GET as fallback
-      if (response.type === 'opaque') {
-        response = await fetch(url, {
-          method: 'GET',
-          mode: 'cors'
-        });
-      }
-
       if (response.ok) {
-        const text = await response.text();
-        let base64Data: string;
+        const json = await response.json();
+        let base64Data = json.qrcode || json.base64 || json.data;
         
-        try {
-          // Try to parse as JSON first
-          const json = JSON.parse(text);
-          base64Data = json.qrcode || json.base64 || json.data || text;
-        } catch {
-          // If not JSON, assume it's base64 directly
-          base64Data = text;
+        if (!base64Data) {
+          throw new Error('QR Code não encontrado na resposta');
         }
         
         // Ensure proper data URL format
@@ -176,13 +178,13 @@ export default function WhatsAppIntegration() {
           description: "QR Code do WhatsApp gerado com sucesso!"
         });
       } else {
-        throw new Error('Erro na requisição');
+        throw new Error(`Erro ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
       console.error('Erro ao gerar QR Code:', error);
       toast({
         title: "Erro",
-        description: "Falha ao gerar QR Code. Verifique a URL do webhook.",
+        description: "Falha ao gerar QR Code. Verifique a URL do webhook e as configurações CORS.",
         variant: "destructive"
       });
     } finally {
@@ -477,6 +479,20 @@ export default function WhatsAppIntegration() {
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
+                  <Label htmlFor="businessName">Nome do Negócio *</Label>
+                  <Input
+                    id="businessName"
+                    placeholder="Ex: Barbearia do João"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Este nome será enviado para o N8N junto com a solicitação do QR Code
+                  </p>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="webhook">URL do Webhook N8N (Opcional)</Label>
                   <Input
                     id="webhook"
@@ -492,7 +508,7 @@ export default function WhatsAppIntegration() {
                 <div className="flex gap-3">
                   <Button 
                     onClick={handleGenerateQr}
-                    disabled={isGenerating}
+                    disabled={isGenerating || !businessName.trim()}
                     className="flex-1"
                   >
                     {isGenerating ? (
