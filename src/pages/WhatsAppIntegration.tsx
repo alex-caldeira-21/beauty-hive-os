@@ -19,7 +19,10 @@ import {
   HelpCircle,
   Plus,
   Edit,
-  Trash2
+  Trash2,
+  QrCode,
+  RefreshCw,
+  Download
 } from "lucide-react";
 
 interface FlowConfig {
@@ -120,6 +123,88 @@ export default function WhatsAppIntegration() {
   ]);
 
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  const handleGenerateQr = async () => {
+    const url = webhookUrl || 'https://tecnia-n8n.thegkr.easypanel.host/webhook/criaqrcode';
+    
+    setIsGenerating(true);
+    
+    try {
+      // Try POST first
+      let response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        mode: 'no-cors'
+      });
+
+      // If no-cors, we can't check status, so try GET as fallback
+      if (response.type === 'opaque') {
+        response = await fetch(url, {
+          method: 'GET',
+          mode: 'cors'
+        });
+      }
+
+      if (response.ok) {
+        const text = await response.text();
+        let base64Data: string;
+        
+        try {
+          // Try to parse as JSON first
+          const json = JSON.parse(text);
+          base64Data = json.qrcode || json.base64 || json.data || text;
+        } catch {
+          // If not JSON, assume it's base64 directly
+          base64Data = text;
+        }
+        
+        // Ensure proper data URL format
+        if (!base64Data.startsWith('data:image/')) {
+          base64Data = `data:image/png;base64,${base64Data}`;
+        }
+        
+        setQrCodeDataUrl(base64Data);
+        setLastUpdated(new Date().toLocaleString('pt-BR'));
+        
+        toast({
+          title: "QR Code gerado",
+          description: "QR Code do WhatsApp gerado com sucesso!"
+        });
+      } else {
+        throw new Error('Erro na requisição');
+      }
+    } catch (error) {
+      console.error('Erro ao gerar QR Code:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao gerar QR Code. Verifique a URL do webhook.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleDownloadQr = () => {
+    if (!qrCodeDataUrl) return;
+    
+    const link = document.createElement('a');
+    link.href = qrCodeDataUrl;
+    link.download = 'whatsapp-qrcode.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Download iniciado",
+      description: "QR Code salvo com sucesso!"
+    });
+  };
 
   const toggleFlow = (id: string) => {
     setFlows(flows.map(flow => 
@@ -384,46 +469,109 @@ export default function WhatsAppIntegration() {
         <TabsContent value="config" className="space-y-6">
           <Card>
             <CardHeader>
+              <CardTitle>Conexão WhatsApp</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Conecte seu WhatsApp à automação escaneando o QR Code
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="webhook">URL do Webhook N8N (Opcional)</Label>
+                  <Input
+                    id="webhook"
+                    placeholder="https://tecnia-n8n.thegkr.easypanel.host/webhook/criaqrcode"
+                    value={webhookUrl}
+                    onChange={(e) => setWebhookUrl(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Deixe em branco para usar a URL padrão
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button 
+                    onClick={handleGenerateQr}
+                    disabled={isGenerating}
+                    className="flex-1"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <QrCode className="w-4 h-4 mr-2" />
+                        {qrCodeDataUrl ? 'Atualizar QR Code' : 'Gerar QR Code'}
+                      </>
+                    )}
+                  </Button>
+                  
+                  {qrCodeDataUrl && (
+                    <Button 
+                      variant="outline"
+                      onClick={handleDownloadQr}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Baixar
+                    </Button>
+                  )}
+                </div>
+
+                {qrCodeDataUrl && (
+                  <div className="flex flex-col items-center space-y-4 p-6 border rounded-lg bg-muted/20">
+                    <div className="text-center">
+                      <h4 className="font-medium mb-2">Escaneie o QR Code</h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Use seu WhatsApp para escanear e conectar
+                      </p>
+                    </div>
+                    
+                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                      <img 
+                        src={qrCodeDataUrl} 
+                        alt="QR Code WhatsApp" 
+                        className="w-48 h-48 object-contain"
+                      />
+                    </div>
+                    
+                    {lastUpdated && (
+                      <p className="text-xs text-muted-foreground">
+                        Última atualização: {lastUpdated}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Integração com N8N</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Configure o webhook para conectar com N8N e automatizar o envio de mensagens
+                Configure o webhook para automatizar o envio de mensagens
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="webhook">URL do Webhook N8N</Label>
-                <Input
-                  id="webhook"
-                  placeholder="https://seu-n8n.com/webhook/whatsapp"
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Este webhook será chamado para enviar mensagens automaticamente
-                </p>
-              </div>
-
               <div className="bg-muted/50 p-4 rounded-lg">
                 <h4 className="font-medium mb-2">Como configurar:</h4>
                 <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                   <li>Crie um workflow no N8N com trigger webhook</li>
                   <li>Adicione um nó do WhatsApp Business API</li>
                   <li>Configure as credenciais do WhatsApp</li>
-                  <li>Cole a URL do webhook aqui</li>
+                  <li>Gere o QR Code acima para conectar</li>
                   <li>Teste a integração</li>
                 </ol>
               </div>
 
               <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  <strong>Importante:</strong> Você precisará configurar uma conta do WhatsApp Business API 
-                  e conectá-la ao N8N para que as mensagens sejam enviadas automaticamente.
+                  <strong>Importante:</strong> Após escanear o QR Code, seu WhatsApp ficará conectado 
+                  ao sistema de automação e poderá enviar mensagens automaticamente.
                 </p>
               </div>
-
-              <Button className="w-full">
-                Salvar Configurações
-              </Button>
             </CardContent>
           </Card>
 
